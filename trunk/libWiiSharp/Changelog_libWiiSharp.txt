@@ -1,0 +1,13 @@
+﻿-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+           libWiiSharp
+            by Leathl
+   libwiisharp.googlecode.com
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+
+
+Changelog:
+-=-=-=-=-=-
+
+Version 0.1
+	- Initial Release
