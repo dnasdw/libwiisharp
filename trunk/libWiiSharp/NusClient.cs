@@ -31,7 +31,7 @@ namespace libWiiSharp
         All = 3
     }
 
-    public class NusClient
+    public class NusClient : IDisposable
     {
         private const string nusUrl = "http://nus.cdn.shop.wii.com/ccs/download/";
         private WebClient wcNus = new WebClient();
@@ -46,6 +46,31 @@ namespace libWiiSharp
         /// If true, the download will be continued even if no ticket for the title is avaiable (WAD packaging and decryption are disabled).
         /// </summary>
         public bool ContinueWithoutTicket { get { return continueWithoutTicket; } set { continueWithoutTicket = value; } }
+
+		#region IDisposable Members
+        private bool isDisposed = false;
+
+        ~NusClient()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && !isDisposed)
+            {
+                wcNus.Dispose();
+            }
+
+            isDisposed = true;
+        }
+        #endregion
 
         #region Public Functions
         /// <summary>

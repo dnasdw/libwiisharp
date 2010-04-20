@@ -46,6 +46,7 @@ namespace libWiiSharp
             IMD5 = 32,
         }
 
+        #region Public Functions
         /// <summary>
         /// Checks a file for Headers.
         /// </summary>
@@ -75,6 +76,41 @@ namespace libWiiSharp
 
             return HeaderType.None;
         }
+
+        /// <summary>
+        /// Checks the stream for Headers.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        public static HeaderType DetectHeader(Stream file)
+        {
+            byte[] tmp = new byte[4];
+
+            if (file.Length > 68)
+            {
+                file.Seek(64, SeekOrigin.Begin);
+                file.Read(tmp, 0, tmp.Length);
+                if (Shared.Swap(BitConverter.ToUInt32(tmp, 0)) == imetMagic)
+                    return HeaderType.ShortIMET;
+            }
+            if (file.Length > 132)
+            {
+                file.Seek(128, SeekOrigin.Begin);
+                file.Read(tmp, 0, tmp.Length);
+                if (Shared.Swap(BitConverter.ToUInt32(tmp, 0)) == imetMagic)
+                    return HeaderType.IMET;
+            }
+            if (file.Length > 4)
+            {
+                file.Seek(0, SeekOrigin.Begin);
+                file.Read(tmp, 0, tmp.Length);
+                if (Shared.Swap(BitConverter.ToUInt32(tmp, 0)) == imd5Magic)
+                    return HeaderType.IMD5;
+            }
+
+            return HeaderType.None;
+        }
+        #endregion
 
         public class IMET
         {
@@ -178,11 +214,11 @@ namespace libWiiSharp
             /// <returns></returns>
             public static IMET Load(byte[] fileOrHeader)
             {
-                IMET s = new IMET();
                 HeaderType type = DetectHeader(fileOrHeader);
                 if (type != HeaderType.IMET && type != HeaderType.ShortIMET)
                     throw new Exception("No IMET Header found!");
 
+                IMET s = new IMET();
                 if (type == HeaderType.ShortIMET) s.isShortImet = true;
 
                 MemoryStream ms = new MemoryStream(fileOrHeader);
@@ -190,6 +226,24 @@ namespace libWiiSharp
                 catch { ms.Dispose(); throw; }
 
                 ms.Dispose();
+                return s;
+            }
+
+            /// <summary>
+            /// Loads the IMET Header of a stream.
+            /// </summary>
+            /// <param name="fileOrHeader"></param>
+            /// <returns></returns>
+            public static IMET Load(Stream fileOrHeader)
+            {
+                HeaderType type = DetectHeader(fileOrHeader);
+                if (type != HeaderType.IMET && type != HeaderType.ShortIMET)
+                    throw new Exception("No IMET Header found!");
+
+                IMET s = new IMET();
+                if (type == HeaderType.ShortIMET) s.isShortImet = true;
+
+                s.parseHeader(fileOrHeader);
                 return s;
             }
 
@@ -365,7 +419,7 @@ namespace libWiiSharp
                 md5.Clear();
             }
 
-            private void parseHeader(MemoryStream headerStream)
+            private void parseHeader(Stream headerStream)
             {
                 headerStream.Seek(0, SeekOrigin.Begin);
                 byte[] tmp = new byte[4];
@@ -413,8 +467,12 @@ namespace libWiiSharp
                 headerStream.Seek(-16, SeekOrigin.Current);
                 headerStream.Write(new byte[16], 0, 16);
 
+                byte[] temp = new byte[headerStream.Length];
+                headerStream.Seek(0, SeekOrigin.Begin);
+                headerStream.Read(temp, 0, temp.Length);
+
                 MD5 m = MD5.Create();
-                byte[] newHash = m.ComputeHash(headerStream.ToArray(), (isShortImet) ? 0 : 0x40, 0x600);
+                byte[] newHash = m.ComputeHash(temp, (isShortImet) ? 0 : 0x40, 0x600);
                 m.Clear();
 
                 hashesMatch = Shared.CompareByteArrays(newHash, hash);
@@ -511,17 +569,33 @@ namespace libWiiSharp
             /// <returns></returns>
             public static IMD5 Load(byte[] fileOrHeader)
             {
-                IMD5 h = new IMD5();
                 HeaderType type = DetectHeader(fileOrHeader);
                 if (type != HeaderType.IMD5)
                     throw new Exception("No IMD5 Header found!");
 
+                IMD5 h = new IMD5();
                 MemoryStream ms = new MemoryStream(fileOrHeader);
 
                 try { h.parseHeader(ms); }
                 catch { ms.Dispose(); throw; }
 
                 ms.Dispose();
+                return h;
+            }
+
+            /// <summary>
+            /// Loads the IMD5 Header of a stream.
+            /// </summary>
+            /// <param name="fileOrHeader"></param>
+            /// <returns></returns>
+            public static IMD5 Load(Stream fileOrHeader)
+            {
+                HeaderType type = DetectHeader(fileOrHeader);
+                if (type != HeaderType.IMD5)
+                    throw new Exception("No IMD5 Header found!");
+
+                IMD5 h = new IMD5();
+                h.parseHeader(fileOrHeader);
                 return h;
             }
 

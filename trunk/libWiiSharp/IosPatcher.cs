@@ -25,7 +25,6 @@ namespace libWiiSharp
 {
     /// <summary>
     /// An IOS patcher which can patch fakesigning, es_identify and nand permissions.
-    /// Be sure that only IOS' that can be patched actually get patched!
     /// </summary>
     public class IosPatcher
     {

@@ -128,6 +128,32 @@ namespace libWiiSharp
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
+        public static long AddPadding(long value)
+        {
+            return AddPadding(value, 64);
+        }
+
+        /// <summary>
+        /// Pads the given value to a multiple of the given padding value, default padding value is 64.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="padding"></param>
+        /// <returns></returns>
+        public static long AddPadding(long value, int padding)
+        {
+            if (value % padding != 0)
+            {
+                value = value + (padding - (value % padding));
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Pads the given value to a multiple of the given padding value, default padding value is 64.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public static int AddPadding(int value)
         {
             return AddPadding(value, 64);
@@ -154,7 +180,7 @@ namespace libWiiSharp
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public static UInt16 Swap(ushort value)
+        public static ushort Swap(ushort value)
         {
             return (ushort)IPAddress.HostToNetworkOrder((short)value);
         }
@@ -184,10 +210,10 @@ namespace libWiiSharp
         /// </summary>
         /// <param name="array"></param>
         /// <returns></returns>
-        public static byte[] UShortArrayToByteArray(UInt16[] array)
+        public static byte[] UShortArrayToByteArray(ushort[] array)
         {
             List<byte> results = new List<byte>();
-            foreach (UInt16 value in array)
+            foreach (ushort value in array)
             {
                 byte[] converted = BitConverter.GetBytes(value);
                 results.AddRange(converted);
@@ -234,7 +260,7 @@ namespace libWiiSharp
         /// <returns></returns>
         public static ushort[] ByteArrayToUShortArray(byte[] array)
         {
-            UInt16[] converted = new UInt16[array.Length / 2];
+            ushort[] converted = new ushort[array.Length / 2];
             int j = 0;
 
             for (int i = 0; i < array.Length; i += 2)

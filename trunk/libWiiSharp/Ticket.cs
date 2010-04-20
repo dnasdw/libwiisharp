@@ -27,7 +27,7 @@ namespace libWiiSharp
         Korean = 0x01,
     }
 
-    public class Ticket
+    public class Ticket : IDisposable
     {
         private byte newKeyIndex = (byte)CommonKeyType.Standard;
         private byte[] decryptedTitleKey = new byte[16];
@@ -91,6 +91,40 @@ namespace libWiiSharp
         /// </summary>
         public bool TitleKeyChanged { get { return titleKeyChanged; } }
 
+		#region IDisposable Members
+        private bool isDisposed = false;
+
+        ~Ticket()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && !isDisposed)
+            {
+                decryptedTitleKey = null;
+                newEncryptedTitleKey = null;
+                signature = null;
+                padding = null;
+                issuer = null;
+                unknown = null;
+                encryptedTitleKey = null;
+                unknown5 = null;
+                unknown6 = null;
+                padding4 = null;
+            }
+
+            isDisposed = true;
+        }
+        #endregion
+
         #region Public Functions
         /// <summary>
         /// Loads a tik file.
@@ -119,6 +153,18 @@ namespace libWiiSharp
             return tik;
         }
 
+        /// <summary>
+        /// Loads a tik file.
+        /// </summary>
+        /// <param name="ticket"></param>
+        /// <returns></returns>
+        public static Ticket Load(Stream ticket)
+        {
+            Ticket tik = new Ticket();
+            tik.parseTicket(ticket);
+            return tik;
+        }
+
 
 
         /// <summary>
@@ -142,6 +188,15 @@ namespace libWiiSharp
             catch { ms.Dispose(); throw; }
 
             ms.Dispose();
+        }
+        
+        /// <summary>
+        /// Loads a tik file.
+        /// </summary>
+        /// <param name="ticket"></param>
+        public void LoadFile(Stream ticket)
+        {
+            parseTicket(ticket);
         }
 
 
@@ -389,7 +444,7 @@ namespace libWiiSharp
             fireDebug("Writing Ticket Finished...");
         }
 
-        private void parseTicket(MemoryStream ticketFile)
+        private void parseTicket(Stream ticketFile)
         {
             fireDebug("Parsing Ticket...");
 

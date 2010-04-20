@@ -61,6 +61,20 @@ namespace libWiiSharp
             return (Shared.Swap(BitConverter.ToUInt32(file, (int)h)) == lz77Magic) ;
         }
 
+        /// <summary>
+        /// Checks whether a file is Lz77 compressed or not.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        public static bool IsLz77Compressed(Stream file)
+        {
+            Headers.HeaderType h = Headers.DetectHeader(file);
+            byte[] temp = new byte[4];
+            file.Seek((long)h, SeekOrigin.Begin);
+            file.Read(temp, 0, temp.Length);
+            return (Shared.Swap(BitConverter.ToUInt32(temp, 0)) == lz77Magic);
+        }
+
 
 
         /// <summary>
@@ -70,11 +84,18 @@ namespace libWiiSharp
         /// <param name="outFile"></param>
         public void Compress(string inFile, string outFile)
         {
-            byte[] compressedFile = compress(File.ReadAllBytes(inFile));
+            Stream compressedFile;
+            
+            using (FileStream fsIn = new FileStream(inFile, FileMode.Open))
+                compressedFile = compress(fsIn);
+
+            byte[] output = new byte[compressedFile.Length];
+            compressedFile.Read(output, 0, output.Length);
+
             if (File.Exists(outFile)) File.Delete(outFile);
 
             using (FileStream fs = new FileStream(outFile, FileMode.Create))
-                fs.Write(compressedFile, 0, compressedFile.Length);
+                fs.Write(output, 0, output.Length);
         }
 
         /// <summary>
@@ -83,6 +104,16 @@ namespace libWiiSharp
         /// <param name="file"></param>
         /// <returns></returns>
         public byte[] Compress(byte[] file)
+        {
+            return ((MemoryStream)compress(new MemoryStream(file))).ToArray();
+        }
+
+        /// <summary>
+        /// Compresses the stream using the Lz77 algorithm.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        public Stream Compress(Stream file)
         {
             return compress(file);
         }
@@ -94,11 +125,18 @@ namespace libWiiSharp
         /// <param name="outFile"></param>
         public void Decompress(string inFile, string outFile)
         {
-            byte[] compressedFile = decompress(File.ReadAllBytes(inFile));
+            Stream compressedFile;
+
+            using (FileStream fsIn = new FileStream(inFile, FileMode.Open))
+                compressedFile = decompress(fsIn);
+
+            byte[] output = new byte[compressedFile.Length];
+            compressedFile.Read(output, 0, output.Length);
+
             if (File.Exists(outFile)) File.Delete(outFile);
 
             using (FileStream fs = new FileStream(outFile, FileMode.Create))
-                fs.Write(compressedFile, 0, compressedFile.Length);
+                fs.Write(output, 0, output.Length);
         }
 
         /// <summary>
@@ -108,20 +146,25 @@ namespace libWiiSharp
         /// <returns></returns>
         public byte[] Decompress(byte[] file)
         {
+            return ((MemoryStream)decompress(new MemoryStream(file))).ToArray();
+        }
+
+        public Stream Decompress(Stream file)
+        {
             return decompress(file);
         }
         #endregion
 
         #region Private Functions
-        private byte[] decompress(byte[] compressedFile)
+        private Stream decompress(Stream inFile)
         {
-            if (!Lz77.IsLz77Compressed(compressedFile)) return compressedFile;
+            if (!Lz77.IsLz77Compressed(inFile)) return inFile;
+            inFile.Seek(0, SeekOrigin.Begin);
 
             int i, j, k, r, c, z;
             uint flags, decompressedSize, currentSize = 0;
 
-            Headers.HeaderType h = Headers.DetectHeader(compressedFile);
-            MemoryStream inFile = new MemoryStream(compressedFile);
+            Headers.HeaderType h = Headers.DetectHeader(inFile);
 
             byte[] temp = new byte[8];
             inFile.Seek((int)h, SeekOrigin.Begin);
@@ -175,17 +218,13 @@ namespace libWiiSharp
                 }
             }
 
-            byte[] result = outFile.ToArray();
-
-            inFile.Dispose();
-            outFile.Dispose();
-
-            return result;
+            return outFile;
         }
 
-        private byte[] compress(byte[] file)
+        private Stream compress(Stream inFile)
         {
-            if (Lz77.IsLz77Compressed(file)) return file;
+            if (Lz77.IsLz77Compressed(inFile)) return inFile;
+            inFile.Seek(0, SeekOrigin.Begin);
 
             int textSize = 0;
             int codeSize = 0;
@@ -193,7 +232,7 @@ namespace libWiiSharp
             int i, c, r, s, length, lastMatchLength, codeBufferPointer, mask;
             int[] codeBuffer = new int[17];
 
-            uint fileSize = ((Convert.ToUInt32(file.Length)) << 8) + 0x10;
+            uint fileSize = ((Convert.ToUInt32(inFile.Length)) << 8) + 0x10;
             MemoryStream outFile = new MemoryStream();
 
             outFile.Write(BitConverter.GetBytes(Shared.Swap(lz77Magic)), 0, 4);
@@ -206,14 +245,12 @@ namespace libWiiSharp
             s = 0;
             r = N - F;
 
-            MemoryStream inFile = new MemoryStream(file);
-
             for (i = s; i < r; i++) textBuffer[i] = 0xffff;
 
             for (length = 0; length < F && (c = (int)inFile.ReadByte()) != -1; length++)
                 textBuffer[r + length] = (ushort)c;
 
-            if ((textSize = length) == 0) return file;
+            if ((textSize = length) == 0) return inFile;
 
             for (i = 1; i <= F; i++) InsertNode(r - i);
             InsertNode(r);
@@ -280,12 +317,7 @@ namespace libWiiSharp
                 for (i = 0; i < 4 - (codeSize % 4); i++)
                     outFile.WriteByte(0x00);
 
-            byte[] result = outFile.ToArray();
-
-            inFile.Dispose();
-            outFile.Dispose();
-
-            return result;
+            return outFile;
         }
 
         private void InitTree()

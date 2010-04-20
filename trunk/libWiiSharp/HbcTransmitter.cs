@@ -43,7 +43,7 @@ namespace libWiiSharp
     /// The HbcTransmitter can easily transmit files to the Homebrew Channel.
     /// In order to use compression, you need zlib1.dll in the application directory.
     /// </summary>
-    public class HbcTransmitter
+    public class HbcTransmitter : IDisposable
     {
         private int blocksize = 4 * 1024;
         private int wiiloadMayor = 0;
@@ -111,6 +111,36 @@ namespace libWiiSharp
             wiiloadMinor = (protocol == Protocol.HAXX) ? 4 : 5;
             compress = (protocol == Protocol.JODI) ? true : false;
         }
+
+        #region IDisposable Members
+        private bool isDisposed = false;
+
+        ~HbcTransmitter()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && !isDisposed)
+            {
+                ipAddress = null;
+                lastErrorMessage = null;
+                lastError = null;
+
+                if (nwStream != null) { nwStream.Close(); nwStream = null; }
+                if (tcpClient != null) { tcpClient.Close(); tcpClient = null; }
+            }
+
+            isDisposed = true;
+        }
+        #endregion
 
         #region Public Functions
         public bool TransmitFile(string pathToFile)

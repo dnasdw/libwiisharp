@@ -111,7 +111,7 @@ namespace TPL_Converter_Example
                 {
                     int texture = 0;
 
-                    if (inputTpl.NumOfTextures > 0)
+                    if (inputTpl.NumOfTextures > 1)
                         texture = int.Parse(cmbFromTplTexture.SelectedItem.ToString()) - 1;
 
                     inputTpl.ExtractTexture(texture, tbFromTplOutput.Text);
@@ -128,24 +128,24 @@ namespace TPL_Converter_Example
             {
                 try
                 {
-                    TPL_Format tplFormat = TPL_Format.RGBA8;
+                    TPL_TextureFormat tplFormat = TPL_TextureFormat.RGBA8;
 
                     switch (cmbToTplFormat.SelectedIndex)
                     {
                         case 0:
-                            tplFormat = TPL_Format.RGBA8; break;
+                            tplFormat = TPL_TextureFormat.RGBA8; break;
                         case 1:
-                            tplFormat = TPL_Format.RGB565; break;
+                            tplFormat = TPL_TextureFormat.RGB565; break;
                         case 2:
-                            tplFormat = TPL_Format.RGB5A3; break;
+                            tplFormat = TPL_TextureFormat.RGB5A3; break;
                         case 3:
-                            tplFormat = TPL_Format.IA8; break;
+                            tplFormat = TPL_TextureFormat.IA8; break;
                         case 4:
-                            tplFormat = TPL_Format.IA4; break;
+                            tplFormat = TPL_TextureFormat.IA4; break;
                         case 5:
-                            tplFormat = TPL_Format.I8; break;
+                            tplFormat = TPL_TextureFormat.I8; break;
                         case 6:
-                            tplFormat = TPL_Format.I4; break;
+                            tplFormat = TPL_TextureFormat.I4; break;
                     }
 
                     TPL t = TPL.FromImage(inputImage, tplFormat);

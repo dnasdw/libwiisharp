@@ -21,7 +21,7 @@ using System.Security.Cryptography;
 
 namespace libWiiSharp
 {
-    public class CertificateChain
+    public class CertificateChain : IDisposable
     {
         private const string certCaHash = "5B7D3EE28706AD8DA2CBD5A6B75C15D0F9B6F318";
         private const string certCpHash = "6824D6DA4C25184F0D6DAF6EDB9C0FC57522A41C";
@@ -37,6 +37,37 @@ namespace libWiiSharp
         /// If false, the Certificate Chain is not complete (i.e. at least one certificate is missing).
         /// </summary>
         public bool CertsComplete { get { return (certsComplete[0] && certsComplete[1] && certsComplete[2]); } }
+
+        #region IDisposable Members
+        private bool isDisposed = false;
+
+        ~CertificateChain()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && !isDisposed)
+            {
+                sha.Clear();
+                sha = null;
+
+                certsComplete = null;
+                certCa = null;
+                certCp = null;
+                certXs = null;
+            }
+
+            isDisposed = true;
+        }
+        #endregion
 
         #region Public Functions
         /// <summary>
@@ -63,6 +94,18 @@ namespace libWiiSharp
             catch { ms.Dispose(); throw; }
 
             ms.Dispose();
+            return c;
+        }
+
+        /// <summary>
+        /// Loads a cert file.
+        /// </summary>
+        /// <param name="cert"></param>
+        /// <returns></returns>
+        public static CertificateChain Load(Stream cert)
+        {
+            CertificateChain c = new CertificateChain();
+            c.parseCert(cert);
             return c;
         }
 
@@ -105,6 +148,21 @@ namespace libWiiSharp
             return c;
         }
 
+        /// <summary>
+        /// Grabs certificates from Ticket and Tmd.
+        /// Ticket and Tmd must contain certs! (They do when they're downloaded from NUS!)
+        /// </summary>
+        /// <param name="tik"></param>
+        /// <param name="tmd"></param>
+        /// <returns></returns>
+        public static CertificateChain FromTikTmd(Stream tik, Stream tmd)
+        {
+            CertificateChain c = new CertificateChain();
+            c.grabFromTik(tik);
+            c.grabFromTmd(tmd);
+            return c;
+        }
+
 
 
         /// <summary>
@@ -128,6 +186,15 @@ namespace libWiiSharp
             catch { ms.Dispose(); throw; }
 
             ms.Dispose();
+        }
+
+        /// <summary>
+        /// Loads a cert file.
+        /// </summary>
+        /// <param name="cert"></param>
+        public void LoadFile(Stream cert)
+        {
+            parseCert(cert);
         }
 
         /// <summary>
@@ -163,6 +230,18 @@ namespace libWiiSharp
             ms.Dispose();
 
             if (!CertsComplete) throw new Exception("Couldn't locate all certs!");
+        }
+
+        /// <summary>
+        /// Grabs certificates from Ticket and Tmd.
+        /// Ticket and Tmd must contain certs! (They do when they're downloaded from NUS!)
+        /// </summary>
+        /// <param name="tik"></param>
+        /// <param name="tmd"></param>
+        public void LoadFromTikTmd(Stream tik, Stream tmd)
+        {
+            grabFromTik(tik);
+            grabFromTmd(tmd);
         }
 
 
@@ -232,7 +311,7 @@ namespace libWiiSharp
             fireDebug("Writing Certificate Chain Finished...");
         }
 
-        private void parseCert(MemoryStream certFile)
+        private void parseCert(Stream certFile)
         {
             fireDebug("Parsing Certificate Chain...");
             int off = 0;
@@ -271,7 +350,7 @@ namespace libWiiSharp
             fireDebug("Parsing Certificate Chain Finished...");
         }
 
-        private void grabFromTik(MemoryStream tik)
+        private void grabFromTik(Stream tik)
         {
             fireDebug("Scanning Ticket for Certificates...");
             int off = 676;
@@ -307,7 +386,7 @@ namespace libWiiSharp
             fireDebug("Scanning Ticket for Certificates Finished...");
         }
 
-        private void grabFromTmd(MemoryStream tmd)
+        private void grabFromTmd(Stream tmd)
         {
             fireDebug("Scanning TMD for Certificates...");
 
