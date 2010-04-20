@@ -29,7 +29,7 @@ namespace libWiiSharp
         Directory = 0x0100,
     }
 
-    public class U8
+    public class U8 : IDisposable
     {
         private const int dataPadding = 32;
         private Headers.HeaderType headerType = Headers.HeaderType.None;
@@ -94,6 +94,42 @@ namespace libWiiSharp
         {
             rootNode.Type = U8_NodeType.Directory;
         }
+
+		#region IDisposable Members
+        private bool isDisposed = false;
+
+        ~U8()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && !isDisposed)
+            {
+                header = null;
+                u8Header = null;
+                rootNode = null;
+
+                u8Nodes.Clear();
+                u8Nodes = null;
+
+                stringTable.Clear();
+                stringTable = null;
+
+                data.Clear();
+                data = null;
+            }
+
+            isDisposed = true;
+        }
+        #endregion
 
         #region Public Functions
         /// <summary>
@@ -162,6 +198,18 @@ namespace libWiiSharp
         }
 
         /// <summary>
+        /// Loads a U8 file.
+        /// </summary>
+        /// <param name="u8File"></param>
+        /// <returns></returns>
+        public static U8 Load(Stream u8File)
+        {
+            U8 u = new U8();
+            u.parseU8(u8File);
+            return u;
+        }
+
+        /// <summary>
         /// Creates a U8 file.
         /// </summary>
         /// <param name="pathToDirectory"></param>
@@ -196,6 +244,15 @@ namespace libWiiSharp
             catch { ms.Dispose(); throw; }
 
             ms.Dispose();
+        }
+
+        /// <summary>
+        /// Loads a U8 file.
+        /// </summary>
+        /// <param name="u8File"></param>
+        public void LoadFile(Stream u8File)
+        {
+            parseU8(u8File);
         }
 
         /// <summary>
@@ -557,7 +614,7 @@ namespace libWiiSharp
             fireDebug("Unpacking U8 File Finished");
         }
 
-        private void parseU8(MemoryStream u8File)
+        private void parseU8(Stream u8File)
         {
             fireDebug("Pasing U8 File...");
 
@@ -568,7 +625,7 @@ namespace libWiiSharp
             data = new List<byte[]>();
 
             fireDebug("   Detecting Header...");
-            headerType = Headers.DetectHeader(u8File.ToArray());
+            headerType = Headers.DetectHeader(u8File);
             Headers.HeaderType tempType = headerType;
 
             fireDebug("    -> {0}", headerType.ToString());
@@ -576,10 +633,13 @@ namespace libWiiSharp
             if (headerType == Headers.HeaderType.IMD5)
             {
                 fireDebug("   Reading IMD5 Header...");
-                header = Headers.IMD5.Load(u8File.ToArray());
+                header = Headers.IMD5.Load(u8File);
+
+                byte[] file = new byte[u8File.Length];
+                u8File.Read(file, 0, file.Length);
 
                 MD5 m = MD5.Create();
-                byte[] newHash = m.ComputeHash(u8File.ToArray(), (int)headerType, (int)u8File.Length - (int)headerType);
+                byte[] newHash = m.ComputeHash(file, (int)headerType, (int)u8File.Length - (int)headerType);
                 m.Clear();
 
                 if (!Shared.CompareByteArrays(newHash, ((Headers.IMD5)header).Hash))
@@ -591,7 +651,7 @@ namespace libWiiSharp
             else if (headerType == Headers.HeaderType.IMET || headerType == Headers.HeaderType.ShortIMET)
             {
                 fireDebug("   Reading IMET Header...");
-                header = Headers.IMET.Load(u8File.ToArray());
+                header = Headers.IMET.Load(u8File);
 
                 if (!((Headers.IMET)header).HashesMatch)
                 {
@@ -601,16 +661,16 @@ namespace libWiiSharp
             }
 
             fireDebug("   Checking for Lz77 Compression...");
-            if (Lz77.IsLz77Compressed(u8File.ToArray()))
+            if (Lz77.IsLz77Compressed(u8File))
             {
                 fireDebug("    -> Lz77 Compression Found...");
                 fireDebug("   Decompressing U8 Data...");
 
                 Lz77 l = new Lz77();
-                byte[] decompressedFile = l.Decompress(u8File.ToArray());
+                Stream decompressedFile = l.Decompress(u8File);
 
                 tempType = Headers.DetectHeader(decompressedFile);
-                u8File = new MemoryStream(decompressedFile);
+                u8File = decompressedFile;
 
                 lz77 = true;
             }

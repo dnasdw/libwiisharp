@@ -37,9 +37,9 @@ namespace libWiiSharp
         Free = 3,
     }
 
-    public class TMD
+    public class TMD : IDisposable
     {
-        private bool fakeSign;
+        private bool fakeSign = false;
 
         private uint signatureExponent = 0x00010001;
         private byte[] signature = new byte[256];
@@ -96,6 +96,37 @@ namespace libWiiSharp
         /// </summary>
         public bool FakeSign { get { return fakeSign; } set { fakeSign = value; } }
 
+		#region IDisposable Members
+        private bool isDisposed = false;
+
+        ~TMD()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && !isDisposed)
+            {
+                signature = null;
+                padding = null;
+                issuer = null;
+                reserved = null;
+
+                contents.Clear();
+                contents = null;
+            }
+
+            isDisposed = true;
+        }
+        #endregion
+
         #region Public Functions
         /// <summary>
         /// Loads a tmd file.
@@ -124,6 +155,18 @@ namespace libWiiSharp
             return t;
         }
 
+        /// <summary>
+        /// Loads a tmd file.
+        /// </summary>
+        /// <param name="tmd"></param>
+        /// <returns></returns>
+        public static TMD Load(Stream tmd)
+        {
+            TMD t = new TMD();
+            t.parseTmd(tmd);
+            return t;
+        }
+
 
 
         /// <summary>
@@ -147,6 +190,15 @@ namespace libWiiSharp
             catch { ms.Dispose(); throw; }
 
             ms.Dispose();
+        }
+
+        /// <summary>
+        /// Loads a tmd file.
+        /// </summary>
+        /// <param name="tmd"></param>
+        public void LoadFile(Stream tmd)
+        {
+            parseTmd(tmd);
         }
 
 
@@ -413,33 +465,6 @@ namespace libWiiSharp
                 ms.Write(contents[contentList[i].Index].Hash, 0, contents[contentList[i].Index].Hash.Length);
             }
 
-
-            //int highestIndex = 0;
-            //foreach (TMD_Content thisContent in contents)
-            //    if (thisContent.Index > highestIndex) highestIndex = thisContent.Index;
-
-            //int counter = 0;
-            //for (int i = 0; i < highestIndex + 1; i++)
-            //{
-            //    int cIndex = -1;
-
-            //    for (int j = 0; j < numOfContents; j++)
-            //        if (contents[j].Index == i) { cIndex = j; break; }
-
-            //    if (cIndex == -1) continue;
-
-            //    fireDebug("   Writing Content #{1} of {2}... (Offset: 0x{0})", ms.Position.ToString("x8").ToUpper().ToUpper(), ++counter, numOfContents);
-
-            //    ms.Write(BitConverter.GetBytes(Shared.Swap(contents[cIndex].ContentID)), 0, 4);
-            //    ms.Write(BitConverter.GetBytes(Shared.Swap(contents[cIndex].Index)), 0, 2);
-            //    ms.Write(BitConverter.GetBytes(Shared.Swap((ushort)contents[cIndex].Type)), 0, 2);
-            //    ms.Write(BitConverter.GetBytes(Shared.Swap(contents[cIndex].Size)), 0, 8);
-
-            //    ms.Write(contents[cIndex].Hash, 0, contents[cIndex].Hash.Length);
-
-            //    if (counter == numOfContents) break;
-            //}
-
             //fake Sign
             byte[] tmd = ms.ToArray();
             ms.Dispose();
@@ -486,7 +511,7 @@ namespace libWiiSharp
             s.Clear();
         }
 
-        private void parseTmd(MemoryStream tmdFile)
+        private void parseTmd(Stream tmdFile)
         {
             fireDebug("Pasing TMD...");
 

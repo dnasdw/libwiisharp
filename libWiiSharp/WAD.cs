@@ -33,7 +33,7 @@ namespace libWiiSharp
         HiddenChannels = 0x00010008,
     }
 
-    public class WAD
+    public class WAD : IDisposable
     {
         private SHA1 sha = SHA1.Create();
         private DateTime creationTimeUTC = new DateTime(1970, 1, 1);
@@ -117,6 +117,7 @@ namespace libWiiSharp
         public string[] ChannelTitles { get { if (hasBanner) return ((Headers.IMET)bannerApp.Header).AllTitles; else return new string[0]; } set { ChangeChannelTitles(value); } }
         /// <summary>
         /// If false, a timestamp will be added as footer (64 bytes).
+        /// Else, the original footer will be kept or the one you provided.
         /// </summary>
         public bool KeepOriginalFooter { get { return keepOriginalFooter; } set { keepOriginalFooter = value; } }
         /// <summary>
@@ -132,6 +133,45 @@ namespace libWiiSharp
             bannerApp.Debug += new EventHandler<MessageEventArgs>(bannerApp_Debug);
             bannerApp.Warning += new EventHandler<MessageEventArgs>(bannerApp_Warning);
         }
+
+		#region IDisposable Members
+        private bool isDisposed = false;
+
+        ~WAD()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && !isDisposed)
+            {
+                sha.Clear();
+                sha = null;
+
+                wadHeader = null;
+
+                cert.Dispose();
+                tik.Dispose();
+                tmd.Dispose();
+
+                contents.Clear();
+                contents = null;
+
+                bannerApp.Dispose();
+
+                footer = null;
+            }
+
+            isDisposed = true;
+        }
+        #endregion
 
         #region Public Functions
         /// <summary>
@@ -158,6 +198,18 @@ namespace libWiiSharp
             catch { ms.Dispose(); throw; }
 
             ms.Dispose();
+            return w;
+        }
+
+        /// <summary>
+        /// Loads a WAD file.
+        /// </summary>
+        /// <param name="wad"></param>
+        /// <returns></returns>
+        public static WAD Load(Stream wad)
+        {
+            WAD w = new WAD();
+            w.parseWad(wad);
             return w;
         }
 
@@ -310,6 +362,15 @@ namespace libWiiSharp
             catch { ms.Dispose(); throw; }
 
             ms.Dispose();
+        }
+
+        /// <summary>
+        /// Loads a WAD file.
+        /// </summary>
+        /// <param name="wad"></param>
+        public void LoadFile(Stream wad)
+        {
+            parseWad(wad);
         }
 
         /// <summary>
@@ -671,6 +732,41 @@ namespace libWiiSharp
         {
             unpackAll(unpackDir, nameContentID);
         }
+
+        /// <summary>
+        /// Removes the footer.
+        /// </summary>
+        public void RemoveFooter()
+        {
+            this.footer = new byte[0];
+            wadHeader.FooterSize = 0;
+
+            this.keepOriginalFooter = true;
+        }
+
+        /// <summary>
+        /// Adds a footer.
+        /// </summary>
+        /// <param name="footer"></param>
+        public void AddFooter(byte[] footer)
+        {
+            ChangeFooter(footer);
+        }
+
+        /// <summary>
+        /// Changes the footer.
+        /// </summary>
+        /// <param name="newFooter"></param>
+        public void ChangeFooter(byte[] newFooter)
+        {
+            if (newFooter.Length % 64 != 0)
+                Array.Resize(ref newFooter, Shared.AddPadding(newFooter.Length));
+
+            this.footer = newFooter;
+            wadHeader.FooterSize = (uint)newFooter.Length;
+
+            this.keepOriginalFooter = true;
+        }
         #endregion
 
         #region Private Functions
@@ -865,7 +961,7 @@ namespace libWiiSharp
             fireDebug("Unpacking Wad Finished...");
         }
 
-        private void parseWad(MemoryStream wadFile)
+        private void parseWad(Stream wadFile)
         {
             fireDebug("Parsing Wad...");
 

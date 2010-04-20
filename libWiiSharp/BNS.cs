@@ -24,9 +24,8 @@ using System.IO;
 
 namespace libWiiSharp
 {
-    public class BNS
+    public class BNS : IDisposable
     {
-        //Private Variables
         private BNS_Header bnsHeader = new BNS_Header();
         private BNS_Info bnsInfo = new BNS_Info();
         private BNS_Data bnsData = new BNS_Data();
@@ -43,9 +42,6 @@ namespace libWiiSharp
         private bool converted = false;
         private bool toMono = false;
 
-
-
-        //Public Variables
         /// <summary>
         /// 0x00 (0) = No Loop, 0x01 (1) = Loop
         /// </summary>
@@ -63,6 +59,8 @@ namespace libWiiSharp
         /// Be sure to set this before you call Convert()!
         /// </summary>
         public bool StereoToMono { get { return toMono; } set { toMono = value; } }
+
+        protected BNS() { }
 
         public BNS(string waveFile)
         {
@@ -86,6 +84,40 @@ namespace libWiiSharp
             this.loopFromWave = loopFromWave;
         }
 
+        #region IDisposable Members
+        private bool isDisposed = false;
+
+        ~BNS()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && !isDisposed)
+            {
+                bnsHeader = null;
+                bnsInfo = null;
+                bnsData = null;
+                lSamples = null;
+                rlSamples = null;
+                tlSamples = null;
+                hbcDefTbl = null;
+                pHist1 = null;
+                pHist2 = null;
+                waveFile = null;
+            }
+            
+            isDisposed = true;
+        }
+        #endregion
+
         #region Public Functions
         /// <summary>
         /// Returns the length of the BNS audio file in seconds
@@ -99,8 +131,6 @@ namespace libWiiSharp
 
             return (int)(sampleCount / sampleRate);
         }
-
-
 
         /// <summary>
         /// Returns the progress of the conversion
@@ -176,10 +206,10 @@ namespace libWiiSharp
         private void convert(byte[] waveFile, bool loopFromWave)
         {
             Wave wave = new Wave(waveFile);
-            int waveLoopCount = wave.LoopCount;
+            int waveLoopCount = wave.NumLoops;
             int waveLoopStart = wave.LoopStart;
 
-            this.bnsInfo.ChannelCount = (byte)wave.ChannelCount;
+            this.bnsInfo.ChannelCount = (byte)wave.NumChannels;
             this.bnsInfo.SampleRate = (ushort)wave.SampleRate;
 
             if (this.bnsInfo.ChannelCount > 2 || this.bnsInfo.ChannelCount < 1)
@@ -189,8 +219,7 @@ namespace libWiiSharp
             if (wave.DataFormat != 1)
                 throw new Exception("The format of this Wave file is not supported!");
 
-            this.bnsData.Data = Encode(wave.GetAllFrames());
-            wave.Close();
+            this.bnsData.Data = Encode(wave.SampleData);
 
             if (this.bnsInfo.ChannelCount == 1)
             {
@@ -450,6 +479,139 @@ namespace libWiiSharp
             }
         }
         #endregion
+
+        #region BNS to Wave
+        #region Public Functions
+        /// <summary>
+        /// Converts a BNS audio file to Wave format.
+        /// </summary>
+        /// <param name="inputFile"></param>
+        /// <param name="outputFile"></param>
+        /// <returns></returns>
+        public static Wave BnsToWave(Stream inputFile)
+        {
+            BNS b = new BNS();
+            byte[] samples = b.Read(inputFile);
+
+            Wave wave = new Wave(b.bnsInfo.ChannelCount, 16, b.bnsInfo.SampleRate, samples);
+            if (b.bnsInfo.HasLoop == 1) wave.AddLoop((int)b.bnsInfo.LoopStart);
+            return wave;
+        }
+
+        public static Wave BnsToWave(string pathToFile)
+        {
+            BNS b = new BNS();
+            byte[] samples;
+
+            using (FileStream fs = new FileStream(pathToFile, FileMode.Open))
+                samples = b.Read(fs);
+
+            Wave wave = new Wave(b.bnsInfo.ChannelCount, 16, b.bnsInfo.SampleRate, samples);
+            if (b.bnsInfo.HasLoop == 1) wave.AddLoop((int)b.bnsInfo.LoopStart);
+            return wave;
+        }
+
+        public static Wave BnsToWave(byte[] bnsFile)
+        {
+            BNS b = new BNS();
+            byte[] samples;
+
+            using (MemoryStream ms = new MemoryStream(bnsFile))
+                samples = b.Read(ms);
+
+            Wave wave = new Wave(b.bnsInfo.ChannelCount, 16, b.bnsInfo.SampleRate, samples);
+            if (b.bnsInfo.HasLoop == 1) wave.AddLoop((int)b.bnsInfo.LoopStart);
+            return wave;
+        }
+        #endregion
+
+        #region Private Functions
+        private byte[] Read(Stream input)
+        {
+            input.Seek(0, SeekOrigin.Begin);
+
+            this.bnsHeader.Read(input);
+            this.bnsInfo.Read(input);
+            this.bnsData.Read(input);
+
+            return Decode();
+        }
+
+        private byte[] Decode()
+        {
+            List<byte> decBuffer = new List<byte>();
+            int blocks = (int)this.bnsData.Data.Length / (this.bnsInfo.ChannelCount == 2 ? 16 : 8);
+
+            int data1Off = 0;
+            int data2Off = blocks * 8;
+
+            byte[] leftBuffer = new byte[0], rightBuffer = new byte[0];
+
+            for (int i = 0; i < blocks; i++)
+            {
+                if (data1Off == 302752) { }
+
+                leftBuffer = DecodeAdpcm(0, data1Off);
+                if (this.bnsInfo.ChannelCount == 2) rightBuffer = DecodeAdpcm(1, data2Off);
+
+                for (int j = 0; j < 14; j++)
+                {
+                    decBuffer.Add(leftBuffer[j * 2]);
+                    decBuffer.Add(leftBuffer[j * 2 + 1]);
+                    if (this.bnsInfo.ChannelCount == 2)
+                    {
+                        decBuffer.Add(rightBuffer[j * 2]);
+                        decBuffer.Add(rightBuffer[j * 2 + 1]);
+                    }
+                }
+
+                data1Off += 8;
+                if (this.bnsInfo.ChannelCount == 2) data2Off += 8;
+            }
+
+            return decBuffer.ToArray();
+        }
+
+        private byte[] DecodeAdpcm(int channel, int dataOffset)
+        {
+            byte[] decBuffer = new byte[14 * 2];
+
+            int coefficientIndex = ((this.bnsData.Data[dataOffset] >> 4) & 0xf);
+            int scale = 1 << (this.bnsData.Data[dataOffset] & 0xf);
+
+            int hist1 = this.pHist1[channel];
+            int hist2 = this.pHist2[channel];
+
+            int coefficient1 = (channel == 0) ? this.bnsInfo.Coefficients1[coefficientIndex * 2] : this.bnsInfo.Coefficients2[coefficientIndex * 2];
+            int coefficient2 = (channel == 0) ? this.bnsInfo.Coefficients1[coefficientIndex * 2 + 1] : this.bnsInfo.Coefficients2[coefficientIndex * 2 + 1];
+            int nibble;
+
+            for (int i = 0; i < 14; i++)
+            {
+                short sampleByte = this.bnsData.Data[dataOffset + (i / 2 + 1)];
+
+                if ((i & 1) == 0) nibble = sampleByte >> 4;
+                else nibble = sampleByte & 0xf;
+
+                if (nibble >= 8) nibble -= 16;
+
+                int sample11 = ((scale * nibble) << 11) + (coefficient1 * hist1 + coefficient2 * hist2);
+                int sampleRaw = Clamp((sample11 + 1024) >> 11, -32768, 32767);
+
+                decBuffer[i * 2] = (byte)(((short)sampleRaw) & 0xff);
+                decBuffer[i * 2 + 1] = (byte)(((short)sampleRaw) >> 8);
+
+                hist2 = hist1;
+                hist1 = sampleRaw;
+            }
+
+            this.pHist1[channel] = hist1;
+            this.pHist2[channel] = hist2;
+
+            return decBuffer;
+        }
+        #endregion
+        #endregion
     }
 
     internal class BNS_Data
@@ -472,6 +634,17 @@ namespace libWiiSharp
             outStream.Write(magic, 0, magic.Length);
             outStream.Write(temp, 0, temp.Length);
             outStream.Write(data, 0, data.Length);
+        }
+
+        public void Read(Stream input)
+        {
+            BinaryReader reader = new BinaryReader(input);
+
+            if (!Shared.CompareByteArrays(magic, reader.ReadBytes(4)))
+                throw new Exception("This is not a valid BNS audfo file!");
+
+            size = Shared.Swap(reader.ReadUInt32());
+            data = reader.ReadBytes((int)size - 8);
         }
     }
 
@@ -683,6 +856,76 @@ namespace libWiiSharp
                 outStream.Write(temp, 0, temp.Length);
             }
         }
+
+        public void Read(Stream input)
+        {
+            BinaryReader reader = new BinaryReader(input);
+
+            if (!Shared.CompareByteArrays(magic, reader.ReadBytes(4)))
+                throw new Exception("This is not a valid BNS audfo file!");
+
+            size = Shared.Swap(reader.ReadUInt32());
+            codec = reader.ReadByte();
+            hasLoop = reader.ReadByte();
+            channelCount = reader.ReadByte();
+            zero = reader.ReadByte();
+            sampleRate = Shared.Swap(reader.ReadUInt16());
+            pad0 = Shared.Swap(reader.ReadUInt16());
+            loopStart = Shared.Swap(reader.ReadUInt32());
+            loopEnd = Shared.Swap(reader.ReadUInt32());
+            offsetToChannelStart = Shared.Swap(reader.ReadUInt32());
+            pad1 = Shared.Swap(reader.ReadUInt32());
+            channel1StartOffset = Shared.Swap(reader.ReadUInt32());
+            channel2StartOffset = Shared.Swap(reader.ReadUInt32());
+            channel1Start = Shared.Swap(reader.ReadUInt32());
+            coefficients1Offset = Shared.Swap(reader.ReadUInt32());
+
+            if (channelCount == 2)
+            {
+                pad2 = Shared.Swap(reader.ReadUInt32());
+                channel2Start = Shared.Swap(reader.ReadUInt32());
+                coefficients2Offset = Shared.Swap(reader.ReadUInt32());
+                pad3 = Shared.Swap(reader.ReadUInt32());
+
+                for (int i = 0; i < 16; i++)
+                    coefficients1[i] = (short)Shared.Swap(reader.ReadUInt16());
+
+                channel1Gain = Shared.Swap(reader.ReadUInt16());
+                channel1PredictiveScale = Shared.Swap(reader.ReadUInt16());
+                channel1PreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel1NextPreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel1LoopPredictiveScale = Shared.Swap(reader.ReadUInt16());
+                channel1LoopPreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel1LoopNextPreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel1LoopPadding = Shared.Swap(reader.ReadUInt16());
+
+                for (int i=0;i<16;i++)
+                    coefficients2[i] = (short)Shared.Swap(reader.ReadUInt16());
+
+                channel2Gain = Shared.Swap(reader.ReadUInt16());
+                channel2PredictiveScale = Shared.Swap(reader.ReadUInt16());
+                channel2PreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel2NextPreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel2LoopPredictiveScale = Shared.Swap(reader.ReadUInt16());
+                channel2LoopPreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel2LoopNextPreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel2LoopPadding = Shared.Swap(reader.ReadUInt16());
+            }
+            else if (channelCount == 1)
+            {
+                for (int i = 0; i < 16; i++)
+                    coefficients1[i] = (short)Shared.Swap(reader.ReadUInt16());
+
+                channel1Gain = Shared.Swap(reader.ReadUInt16());
+                channel1PredictiveScale = Shared.Swap(reader.ReadUInt16());
+                channel1PreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel1NextPreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel1LoopPredictiveScale = Shared.Swap(reader.ReadUInt16());
+                channel1LoopPreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel1LoopNextPreviousValue = Shared.Swap(reader.ReadUInt16());
+                channel1LoopPadding = Shared.Swap(reader.ReadUInt16());
+            }
+        }
     }
 
     internal class BNS_Header
@@ -734,6 +977,27 @@ namespace libWiiSharp
 
             temp = BitConverter.GetBytes(dataLength); Array.Reverse(temp);
             outStream.Write(temp, 0, temp.Length);
+        }
+
+        public void Read(Stream input)
+        {
+            BinaryReader reader = new BinaryReader(input);
+
+            if (!Shared.CompareByteArrays(magic, reader.ReadBytes(4)))
+            {
+                reader.BaseStream.Seek(28, SeekOrigin.Current);
+                if (!Shared.CompareByteArrays(magic, reader.ReadBytes(4)))
+                    throw new Exception("This is not a valid BNS audfo file!");
+            }
+
+            flags = Shared.Swap(reader.ReadUInt32());
+            fileSize = Shared.Swap(reader.ReadUInt32());
+            size = Shared.Swap(reader.ReadUInt16());
+            chunkCount = Shared.Swap(reader.ReadUInt16());
+            infoOffset = Shared.Swap(reader.ReadUInt32());
+            infoLength = Shared.Swap(reader.ReadUInt32());
+            dataOffset = Shared.Swap(reader.ReadUInt32());
+            dataLength = Shared.Swap(reader.ReadUInt32());
         }
     }
 }
