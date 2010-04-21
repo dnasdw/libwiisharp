@@ -9,6 +9,9 @@
 Changelog:
 -=-=-=-=-=-
 
+Version 0.21
+	- Fixed smpl region not read in Wave class
+
 Version 0.2
 	- Added support to pass streams
 	- Speed up in TPL conversion
