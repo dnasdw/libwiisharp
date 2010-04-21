@@ -257,6 +257,7 @@ namespace libWiiSharp
                     case 0x736d706c: //smpl
                         try
                         {
+                            reader.BaseStream.Seek(-8, SeekOrigin.Current);
                             smpl.Read(reader);
                             hasSmpl = true;
                         }
