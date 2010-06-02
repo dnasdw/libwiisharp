@@ -1,0 +1,14 @@
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\bin\Debug\Changelog_libWiiSharp.txt
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\bin\Debug\License_libWiiSharp.txt
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\bin\Debug\Readme_libWiiSharp.txt
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\bin\Debug\Tester.exe
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\bin\Debug\Tester.pdb
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\bin\Debug\libWiiSharp.dll
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\bin\Debug\libWiiSharp.pdb
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\obj\x86\Debug\ResolveAssemblyReference.cache
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\obj\x86\Debug\Tester.Form1.resources
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\obj\x86\Debug\Tester.Properties.Resources.resources
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\obj\x86\Debug\GenerateResource.read.1.tlog
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\obj\x86\Debug\GenerateResource.write.1.tlog
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\obj\x86\Debug\Tester.exe
+C:\Users\Phil\Documents\Visual Studio 2010\Projects\libWiiSharp\Tester\obj\x86\Debug\Tester.pdb

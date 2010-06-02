@@ -1,17 +1,16 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Resources;
 
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("libWiiSharp")]
-[assembly: AssemblyDescription("a wii related .NET library")]
+[assembly: AssemblyTitle("Tester")]
+[assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Leathl")]
-[assembly: AssemblyProduct("libWiiSharp")]
-[assembly: AssemblyCopyright("Copyright © Leathl 2010")]
+[assembly: AssemblyCompany("Microsoft")]
+[assembly: AssemblyProduct("Tester")]
+[assembly: AssemblyCopyright("Copyright © Microsoft 2010")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -21,7 +20,7 @@ using System.Resources;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("af701263-5875-4866-9c09-d7f62e9f0ff0")]
+[assembly: Guid("5a6f7024-a911-448c-a7df-908022643755")]
 
 // Version information for an assembly consists of the following four values:
 //
@@ -33,6 +32,5 @@ using System.Resources;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.3.0.0")]
-[assembly: AssemblyFileVersion("0.3.0.0")]
-[assembly: NeutralResourcesLanguageAttribute("en")]
+[assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyFileVersion("1.0.0.0")]
