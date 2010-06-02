@@ -21,7 +21,7 @@ using System.Text;
 
 namespace libWiiSharp
 {
-    internal struct ContentIndices : IComparable
+    public struct ContentIndices : IComparable
     {
         private int index;
         private int contentIndex;

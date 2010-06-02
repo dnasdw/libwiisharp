@@ -124,6 +124,14 @@ namespace libWiiSharp
         /// The TMDs content entries.
         /// </summary>
         public TMD_Content[] TmdContents { get { return tmd.Contents; } }
+        /// <summary>
+        /// The index of the common key used to encrypt the titles content.
+        /// </summary>
+        public CommonKeyType CommonKeyType { get { return tik.CommonKeyIndex; } set { tik.CommonKeyIndex = value; } }
+        /// <summary>
+        /// If true, the contents will be sorted after their index.
+        /// </summary>
+        public bool SortContents { get { return tmd.SortContents; } set { tmd.SortContents = value; } }
 
         public WAD()
         {
@@ -878,13 +886,9 @@ namespace libWiiSharp
             writeStream.Write(temp, 0, temp.Length);
 
             //Write Contents
-            List<ContentIndices> contentList = new List<ContentIndices>();
-            for (int i = 0; i < tmd.Contents.Length; i++)
-                contentList.Add(new ContentIndices(i, tmd.Contents[i].Index));
+            ContentIndices[] contentList = tmd.GetSortedContentList();
 
-            contentList.Sort();
-
-            for (int i = 0; i < contentList.Count; i++)
+            for (int i = 0; i < contentList.Length; i++)
             {
                 writeStream.Seek(Shared.AddPadding((int)writeStream.Position), SeekOrigin.Begin);
 

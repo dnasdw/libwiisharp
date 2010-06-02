@@ -40,6 +40,7 @@ namespace libWiiSharp
     public class TMD : IDisposable
     {
         private bool fakeSign = false;
+        private bool sortContents = false;
 
         private uint signatureExponent = 0x00010001;
         private byte[] signature = new byte[256];
@@ -95,6 +96,10 @@ namespace libWiiSharp
         /// If true, the TMD will be fakesigned while saving.
         /// </summary>
         public bool FakeSign { get { return fakeSign; } set { fakeSign = value; } }
+        /// <summary>
+        /// If true, the contents will be sorted after their index.
+        /// </summary>
+        public bool SortContents { get { return sortContents; } set { sortContents = true; } }
 
 		#region IDisposable Members
         private bool isDisposed = false;
@@ -373,6 +378,21 @@ namespace libWiiSharp
 
             numOfContents = (ushort)contents.Count;
         }
+
+        /// <summary>
+        /// Returns a list of ContentIndices that holds the correct order of the contents.
+        /// </summary>
+        /// <returns></returns>
+        public ContentIndices[] GetSortedContentList()
+        {
+            List<ContentIndices> contentList = new List<ContentIndices>();
+            for (int i = 0; i < contents.Count; i++)
+                contentList.Add(new ContentIndices(i, contents[i].Index));
+
+            if (sortContents) contentList.Sort();
+
+            return contentList.ToArray();
+        }
         #endregion
 
         #region Private Functions
@@ -451,7 +471,7 @@ namespace libWiiSharp
             for (int i = 0; i < contents.Count; i++)
                 contentList.Add(new ContentIndices(i, contents[i].Index));
 
-            contentList.Sort();
+            if (sortContents) contentList.Sort();
 
             for (int i = 0; i < contentList.Count; i++)
             {

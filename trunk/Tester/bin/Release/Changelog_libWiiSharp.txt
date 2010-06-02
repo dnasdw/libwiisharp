@@ -11,7 +11,6 @@ Changelog:
 
 Version 0.3
 	- Added support to change the common key index of the ticket in the WAD class
-	- Made the sorting of wad/tmd contents optional (off by default!)
 
 Version 0.21
 	- Fixed smpl region not read in Wave class
